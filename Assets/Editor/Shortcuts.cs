@@ -1,17 +1,37 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using System.Collections.Generic;
 
 public static class Shortcuts
 {
-    const string FindSourceAssetString      = "GameObject/Find Source Asset %e";            // ctrl-e / command-e
-    const string HideSelectionString        = "View/Hide Selection %h";                     // ctrl-h / command-h
-    const string ViewTopDownString          = "View/Toggle View Top-Down %F1";              // ctrl-F1 / command-F1
-    const string ViewLeftRightString        = "View/Toggle View Left-Right %F2";            // ctrl-F2 / command-F2
-    const string ViewFrontBackString        = "View/Toggle View Front-Back %F3";            // ctrl-F3 / command-F3
-    const string ToggleOrthogonalString     = "View/Toggle View Perspective-Orthogonal %`"; // ctrl-` / command-`
+    const string FindSourceAssetString      = "GameObject/Find Source Asset %e";            // command / ctrl - e
+    const string HideSelectionString        = "GameObject/Hide Selection %h";               // command / ctrl - h
+    const string ViewTopDownString          = "View/Toggle View Top-Down %F1";              // command / ctrl - F1 
+    const string ViewLeftRightString        = "View/Toggle View Left-Right %F2";            // command / ctrl - F2 
+    const string ViewFrontBackString        = "View/Toggle View Front-Back %F3";            // command / ctrl - F3 
+    const string ToggleOrthogonalString     = "View/Toggle View Perspective-Orthogonal %`"; // command / ctrl - ` 
+    const string LockInspectorString        = "View/Toggle Inspector Lock %i";              // command / ctrl - i 
+
+
 
     // Hide/show selected objects
     #region Hide Selection
+    [MenuItem(HideSelectionString, true)]
+    public static bool ValidateHideSelection()
+    {
+        int hidden_objects = 0;
+        int shown_objects = 0;
+
+        foreach (var obj in Selection.gameObjects)
+        {
+            if (obj.activeSelf)
+                shown_objects++;
+            else
+                hidden_objects++;
+        }
+
+        return (hidden_objects != 0 || shown_objects != 0);
+    }
     [MenuItem(HideSelectionString)]
     static void HideSelection()
     {
@@ -79,7 +99,7 @@ public static class Shortcuts
     #endregion
 
 
-    // Toggle between top and down view by pressing ctrl-F1 or command-F1
+    // Toggle between top and down view 
     #region Set View Top-Down
     [MenuItem(ViewTopDownString, true)]
     public static bool ValidateSetViewTopDown() { return SceneView.lastActiveSceneView != null; }
@@ -97,7 +117,7 @@ public static class Shortcuts
     #endregion
 
 
-    // Toggle between left and right view by pressing ctrl-F2 or command-F2
+    // Toggle between left and right view 
     #region Set View Left-Right
     [MenuItem(ViewLeftRightString, true)]
     public static bool ValidateSetViewLeftRight() { return SceneView.lastActiveSceneView != null; }
@@ -115,7 +135,7 @@ public static class Shortcuts
     #endregion
 
 
-    // Toggle between front and back view by pressing ctrl-F3 or command-F3
+    // Toggle between front and back view 
     #region Set View Front-Back
     [MenuItem(ViewFrontBackString, true)]
     public static bool ValidateSetFrontBack() { return SceneView.lastActiveSceneView != null; }
@@ -133,7 +153,7 @@ public static class Shortcuts
     #endregion
 
 
-    // Toggle between perspective and orthogonal view by pressing ctrl-` or command-`
+    // Toggle between perspective and orthogonal view 
     #region Toggle Orthogonal
     [MenuItem(ToggleOrthogonalString, true)]
     public static bool ValidateToggleOrthogonal() { return SceneView.lastActiveSceneView != null; }
@@ -147,11 +167,68 @@ public static class Shortcuts
         view.LookAt(view.pivot, view.rotation, view.size, !view.orthographic);
     }
     #endregion
+    
+
+    // Toggle the inspector lock of the first inspector window
+    #region Toggle Inspector Lock
+    static void InitToggleInspectorLock()
+    {
+        inspectorIsLockedPropertyInfo = null;
+        inspectorType = System.Reflection.Assembly.GetAssembly(typeof(Editor)).GetType("UnityEditor.InspectorWindow");
+        if (inspectorType != null)
+        {
+            inspectorIsLockedPropertyInfo = inspectorType.GetProperty("isLocked");
+        }
+        inspectorInitialized = true;
+    }
+
+    static bool inspectorInitialized = false;
+    static System.Type inspectorType;
+    static System.Reflection.PropertyInfo inspectorIsLockedPropertyInfo;
+    [MenuItem(LockInspectorString, true)]
+    static bool ValidateToggleInspectorLock()
+    {
+        if (!inspectorInitialized)
+        {
+            InitToggleInspectorLock();
+        }
+        if (inspectorIsLockedPropertyInfo == null)
+            return false;
+        var allInspectors = Resources.FindObjectsOfTypeAll(inspectorType);
+        if (allInspectors.Length == 0)
+            return false;
+        var inspector = allInspectors[allInspectors.Length - 1] as EditorWindow;
+        if (inspector == null)
+            return false;
+        return true;
+    }
+    [MenuItem(LockInspectorString)]
+    static void ToggleInspectorLock()
+    {
+        if (!inspectorInitialized)
+        {
+            InitToggleInspectorLock();
+        }
+        if (inspectorIsLockedPropertyInfo == null)
+            return;
+        var allInspectors = Resources.FindObjectsOfTypeAll(inspectorType);
+        if (allInspectors.Length == 0)
+            return;
+        var inspector = allInspectors[allInspectors.Length - 1] as EditorWindow;
+        if (inspector == null)
+            return;
+
+        var value = (bool)inspectorIsLockedPropertyInfo.GetValue(inspector, null);
+        inspectorIsLockedPropertyInfo.SetValue(inspector, !value, null);
+        inspector.Repaint();
+    }
+    #endregion
+
 
 
 
     #region Toggle Between View Directions (helper function)
-    static Quaternion[] kDirectionRotations = {
+    static readonly Quaternion[] kDirectionRotations = {
         Quaternion.LookRotation (new Vector3 (-1, 0, 0)),    // right
         Quaternion.LookRotation (new Vector3 ( 0,-1, 0)),    // top
         Quaternion.LookRotation (new Vector3 ( 0, 0,-1)),    // front
